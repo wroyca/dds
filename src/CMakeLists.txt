@@ -1,4 +1,4 @@
-file(GLOB_RECURSE dds RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp *.hpp *.ui)
+file(GLOB_RECURSE dds RELATIVE ${CMAKE_CURRENT_SOURCE_DIR} *.cpp *.h *.ui)
 
 add_executable(dds
     ${dds}

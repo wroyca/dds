@@ -7,16 +7,17 @@ QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
 QT_END_NAMESPACE
 
-class MainWindow : public QMainWindow
+class MainWindow final : public QMainWindow
 {
-    Q_OBJECT
+  Q_OBJECT
+  Q_DISABLE_COPY_MOVE(MainWindow)
 
 public:
-    MainWindow(QWidget *parent = nullptr);
-    ~MainWindow();
+  explicit MainWindow(QWidget* parent = nullptr);
+  ~MainWindow() override;
 
 private:
-    Ui::MainWindow *ui;
+  Ui::MainWindow* ui;
 };
 
 #endif // MAINWINDOW_H
