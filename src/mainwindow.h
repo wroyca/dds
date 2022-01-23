@@ -13,11 +13,14 @@ class MainWindow final : public QMainWindow
   Q_DISABLE_COPY_MOVE(MainWindow)
 
 public:
-  explicit MainWindow(QWidget* parent = nullptr);
+  explicit MainWindow(QWidget *parent = nullptr);
   ~MainWindow() override;
 
+private slots:
+    auto on_actionOpen_triggered() -> void;
+
 private:
-  Ui::MainWindow* ui;
+  Ui::MainWindow *ui;
 };
 
 #endif // MAINWINDOW_H

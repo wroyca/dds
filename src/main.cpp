@@ -3,6 +3,8 @@
 #include <QApplication>
 #include <QStyleFactory>
 
+#include "dia_interfaces.h"
+
 auto main(int argc, char *argv[]) -> int
 {
   QApplication a(argc, argv);
