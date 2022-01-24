@@ -4,15 +4,11 @@
 #include "dia_session.h"
 #include "dia_interfaces.h"
 
-#include <QFile>
 #include <QDir>
 #include <QStandardPaths>
-#include <QMessageBox>
 
 auto dia_session::dump_source_files() -> bool
 {
-  QMessageBox::information(nullptr, "DDS", "This will take a while, please wait");
-
   // In order to find the source files, we have to look at the image's compilands/modules
   IDiaEnumSymbols *enum_symbols;
 
@@ -38,17 +34,21 @@ auto dia_session::dump_source_files() -> bool
 
         if (source_file->get_fileName(&bstr_source_name) == S_OK)
         {
-          // TODO: This is quite messy, hardcoded, and bad. Cleanup later.
           auto source_name = QString(reinterpret_cast<QChar*>(bstr_source_name)).remove(':').replace('\\', '/');
           auto source_directory = source_name.section("/", 0, -2);
 
-          auto extract_source = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/cache/").append(source_name);
-          auto extract_directory = QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/cache/").append(source_directory);
+          // Physically extracting the source tree is more convenient than adding node manually to the treeview.
+          // BUG: The append() function of the QString class was overwriting the variable instead of using a temporary. The lambda is a workaround.
 
-          if (QDir dir; !dir.exists(extract_directory))
-            dir.mkpath(extract_directory);
+          auto writable_location = [](auto &a)
+          {
+            return QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/ddscache/").append(a);
+          };
 
-          if (QFile file(extract_source); !file.exists())
+          if (QDir dir; !dir.exists(writable_location(source_directory)))
+            dir.mkpath(writable_location(source_directory));
+
+          if (QFile file(writable_location(source_name)); !file.exists())
             file.open(QIODevice::WriteOnly);
 
           SysFreeString(bstr_source_name);
@@ -60,6 +60,4 @@ auto dia_session::dump_source_files() -> bool
     compiland->Release();
   }
   enum_symbols->Release();
-
-  QMessageBox::information(nullptr, "DDS", "Done");
 }

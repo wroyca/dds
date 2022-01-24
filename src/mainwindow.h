@@ -17,8 +17,12 @@ public:
   explicit MainWindow(QWidget *parent = nullptr);
   ~MainWindow() override;
 
+protected:
+  auto on_treeview_layout_about_to_be_changed() -> void;
+  auto on_treeview_layout_changed() -> void;
+
 private slots:
-    auto on_actionOpen_triggered() -> void;
+  auto on_actionOpen_triggered() -> void;
 
 private:
   Ui::MainWindow *ui;
