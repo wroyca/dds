@@ -1,15 +1,26 @@
 #include "mainwindow.h"
 
+#include <Windows.h>
+
 #include <QApplication>
 #include <QStyleFactory>
-
-#include "dia_interfaces.h"
 
 auto main(int argc, char *argv[]) -> int
 {
   QApplication a(argc, argv);
   MainWindow w;
   QPalette d;
+
+  // Helper for COM object logs
+  {
+    AllocConsole();
+
+    auto fpstdin = stdin, fpstdout = stdout, fpstderr = stderr;
+
+    freopen_s(&fpstdin, "CONIN$", "r", stdin);
+    freopen_s(&fpstdout, "CONOUT$", "w", stdout);
+    freopen_s(&fpstderr, "CONOUT$", "w", stderr);
+  }
 
   d.setColor(QPalette::Window, QColor(53, 53, 53));
   d.setColor(QPalette::WindowText, Qt::white);

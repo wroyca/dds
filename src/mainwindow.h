@@ -2,6 +2,7 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QFileSystemModel>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -21,6 +22,7 @@ private slots:
 
 private:
   Ui::MainWindow *ui;
+  QFileSystemModel *file_system_model;
 };
 
 #endif // MAINWINDOW_H
