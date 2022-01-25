@@ -8,7 +8,10 @@ class dia_load_callback final : public IDiaLoadCallback2
   int reference_count;
 
 public:
-  dia_load_callback() : reference_count(0) { AddRef(); }
+  dia_load_callback() : reference_count(0)
+  {
+    AddRef();
+  }
 
   auto STDMETHODCALLTYPE AddRef() -> ULONG override
   {

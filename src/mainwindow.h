@@ -1,6 +1,8 @@
 #ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "dia_data_source.h"
+
 #include <QMainWindow>
 #include <QFileSystemModel>
 
@@ -18,17 +20,19 @@ public:
   ~MainWindow() override;
 
 protected:
-  auto on_treeview_layout_update() -> void;
+  auto treeview_init() -> void;
 
 private slots:
-  auto on_actionOpen_triggered() -> void;
-  void on_treeView_clicked(const QModelIndex &index);
-
-  void on_treeView_expanded(const QModelIndex &index);
+  auto on_actionDebugging_Symbols_triggered() -> void;
+  auto on_actionExit_triggered() -> void;
+  auto on_treeView_collapsed(const QModelIndex &index) -> void;
+  auto on_treeView_expanded(const QModelIndex &index) -> void;
+  auto on_treeView_doubleClicked(const QModelIndex &index) -> void;
 
 private:
   Ui::MainWindow *ui;
   QFileSystemModel *file_system_model;
+  std::unique_ptr<dia_data_source> dia_data_source;
 };
 
 #endif // MAINWINDOW_H

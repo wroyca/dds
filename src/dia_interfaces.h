@@ -11,13 +11,13 @@ struct dia_interfaces
   dia_interfaces();
 
   // Initiates access to a source of debugging symbols.
-  CComPtr<IDiaDataSource> dia_data_source;
+  CComPtr<IDiaDataSource> data_source;
 
   // Provides a query context for debug symbols.
-  CComPtr<IDiaSession> dia_session;
+  CComPtr<IDiaSession> session;
 
   // Describes the properties of a symbol instance.
-  CComPtr<IDiaSymbol> dia_symbol;
+  CComPtr<IDiaSymbol> symbol;
 };
 
 inline dia_interfaces::dia_interfaces()
@@ -41,11 +41,8 @@ inline dia_interfaces::dia_interfaces()
   const auto object = get_class_object(__uuidof(DiaSource), __uuidof(IClassFactory), &class_factory);
   assert(SUCCEEDED(object));
 
-  const auto instance = class_factory->CreateInstance(nullptr, __uuidof(IDiaDataSource), reinterpret_cast<void**>(&dia_data_source));
+  const auto instance = class_factory->CreateInstance(nullptr, __uuidof(IDiaDataSource), reinterpret_cast<void**>(&data_source));
   assert(SUCCEEDED(instance));
 }
-
-// More convenient than passing an object reference through a deep hierarchy.
-extern dia_interfaces interfaces;
 
 #endif // DIA_INTERFACES_H

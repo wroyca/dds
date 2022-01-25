@@ -1,32 +1,26 @@
-// ReSharper disable CppClangTidyClangDiagnosticReturnType
-// ReSharper disable CppNotAllPathsReturnValue
+#include "dia_data_source.h"
 
-#include "dia_session.h"
-#include "dia_interfaces.h"
-
-#include <QDir>
 #include <QStandardPaths>
+#include <QDir>
+#include <QFile>
 
-auto dia_session::dump_source_files() -> bool
+auto dia_data_source::get_source_files() -> void
 {
-  // In order to find the source files, we have to look at the image's compilands/modules
-  IDiaEnumSymbols *enum_compilands;
+  IDiaEnumSymbols* enum_compilands;
 
-  if (FAILED(interfaces.dia_symbol->findChildren(SymTagCompiland, NULL, nsNone, &enum_compilands)))
-    return false;
+  if (FAILED(symbol->findChildren(SymTagCompiland, NULL, nsNone, &enum_compilands)))
+    return;
 
-  IDiaSymbol *compiland;
+  IDiaSymbol* compiland;
   ULONG celt = 0;
 
   while (SUCCEEDED(enum_compilands->Next(1, &compiland, &celt)) && celt == 1)
   {
-    // Every compiland could contain multiple references to the source files which were used to build it
-    // Retrieve all source files by compiland by passing NULL for the name of the source file
-    IDiaEnumSourceFiles *enum_source_files;
+    IDiaEnumSourceFiles* enum_source_files;
 
-    if (SUCCEEDED(interfaces.dia_session->findFile(compiland, NULL, nsNone, &enum_source_files)))
+    if (SUCCEEDED(session->findFile(compiland, NULL, nsNone, &enum_source_files)))
     {
-      IDiaSourceFile *source_file;
+      IDiaSourceFile* source_file;
 
       while (SUCCEEDED(enum_source_files->Next(1, &source_file, &celt)) && celt == 1)
       {
@@ -40,9 +34,9 @@ auto dia_session::dump_source_files() -> bool
           // Physically extracting the source tree is more convenient than adding node manually to the treeview.
           // BUG: The append() function of the QString class was overwriting the variable instead of using a temporary. The lambda is a workaround.
 
-          auto writable_location = [](auto &a)
+          auto writable_location = [](auto &location)
           {
-            return QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/ddscache/").append(a);
+            return QStandardPaths::writableLocation(QStandardPaths::TempLocation).append("/dds/").append(location);
           };
 
           if (QDir dir; !dir.exists(writable_location(source_directory)))
