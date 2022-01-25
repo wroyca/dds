@@ -18,11 +18,11 @@ public:
   ~MainWindow() override;
 
 protected:
-  auto on_treeview_layout_about_to_be_changed() -> void;
-  auto on_treeview_layout_changed() -> void;
+  auto on_treeview_layout_update() -> void;
 
 private slots:
   auto on_actionOpen_triggered() -> void;
+  void on_treeView_clicked(const QModelIndex &index);
 
 private:
   Ui::MainWindow *ui;

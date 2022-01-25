@@ -10,15 +10,15 @@
 auto dia_session::dump_source_files() -> bool
 {
   // In order to find the source files, we have to look at the image's compilands/modules
-  IDiaEnumSymbols *enum_symbols;
+  IDiaEnumSymbols *enum_compilands;
 
-  if (FAILED(interfaces.dia_symbol->findChildren(SymTagCompiland, NULL, nsNone, &enum_symbols)))
+  if (FAILED(interfaces.dia_symbol->findChildren(SymTagCompiland, NULL, nsNone, &enum_compilands)))
     return false;
 
   IDiaSymbol *compiland;
   ULONG celt = 0;
 
-  while (SUCCEEDED(enum_symbols->Next(1, &compiland, &celt)) && celt == 1)
+  while (SUCCEEDED(enum_compilands->Next(1, &compiland, &celt)) && celt == 1)
   {
     // Every compiland could contain multiple references to the source files which were used to build it
     // Retrieve all source files by compiland by passing NULL for the name of the source file
@@ -59,5 +59,5 @@ auto dia_session::dump_source_files() -> bool
     }
     compiland->Release();
   }
-  enum_symbols->Release();
+  enum_compilands->Release();
 }
