@@ -24,6 +24,8 @@ private slots:
   auto on_actionOpen_triggered() -> void;
   void on_treeView_clicked(const QModelIndex &index);
 
+  void on_treeView_expanded(const QModelIndex &index);
+
 private:
   Ui::MainWindow *ui;
   QFileSystemModel *file_system_model;

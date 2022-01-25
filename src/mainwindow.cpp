@@ -32,6 +32,9 @@ auto MainWindow::on_treeview_layout_update() -> void
 
   for (auto i = 1; i < file_system_model->columnCount(); ++i)
     ui->treeView->hideColumn(i);
+
+  ui->treeView->header()->setStretchLastSection(true);
+  ui->treeView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 }
 
 auto MainWindow::on_actionOpen_triggered() -> void
@@ -140,5 +143,11 @@ void MainWindow::on_treeView_clicked(const QModelIndex &index)
     }
     enum_source_files->Release();
   }
+}
+
+
+void MainWindow::on_treeView_expanded(const QModelIndex &index)
+{
+  ui->treeView->resizeColumnToContents(0);
 }
 
