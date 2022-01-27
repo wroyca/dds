@@ -18,12 +18,33 @@ MainWindow::MainWindow(QWidget *parent)
   , ui(new Ui::MainWindow), file_system_model(new QFileSystemModel(this))
 {
   ui->setupUi(this);
+}
 
-  ZyanU8 data[] = {0x51, 0x8D, 0x45, 0xFF, 0x50, 0xFF, 0x75, 0x0C, 0xFF, 0x75, 0x08, 0xFF, 0x15, 0xA0, 0xA5, 0x48, 0x76, 0x85, 0xC0, 0x0F, 0x88, 0xFC, 0xDA, 0x02, 0x00};
+MainWindow::~MainWindow()
+{
+  delete ui;
+}
+
+auto MainWindow::on_actionDebugging_Symbols_triggered() -> void
+{
+  const auto filename = QFileDialog::getOpenFileName(nullptr, tr("Load Debugging Symbols..."), "", tr("Program Database (*.pdb)"));
+
+  if (filename.isEmpty())
+    return;
+
+  QFileInfo info(filename);
+  const auto exe_filename = info.path() + "/" + info.completeBaseName() + ".exe";
+
+  QFile file(exe_filename);
+  if (!file.open(QIODevice::ReadOnly)) return;
+  QByteArray contents = file.readAll();
+  ZyanU8 *data = reinterpret_cast<ZyanU8 *>(contents.data());
+
+  //ZyanU8 data[] = {0x51, 0x8D, 0x45, 0xFF, 0x50, 0xFF, 0x75, 0x0C, 0xFF, 0x75, 0x08, 0xFF, 0x15, 0xA0, 0xA5, 0x48, 0x76, 0x85, 0xC0, 0x0F, 0x88, 0xFC, 0xDA, 0x02, 0x00};
 
   // Initialize decoder context
   ZydisDecoder decoder;
-  ZydisDecoderInit(&decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64);
+  ZydisDecoderInit(&decoder, ZYDIS_MACHINE_MODE_LONG_COMPAT_32, ZYDIS_STACK_WIDTH_32);
 
   // Initialize formatter. Only required when you actually plan to do instruction
   // formatting ("disassembling"), like we do here
@@ -34,7 +55,10 @@ MainWindow::MainWindow(QWidget *parent)
   // The runtime-address (instruction pointer) is chosen arbitrary here in order to better
   // visualize relative addressing
   ZyanU64 runtime_address = 0x007FFFFFFF400000;
-  ZyanUSize offset = 0;
+
+  ZyanU64 base_address = 0x401000;
+  ZyanUSize offset = 0x7A1170 - base_address;
+
   constexpr auto length = sizeof(data);
   ZydisDecodedInstruction instruction;
   ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT_VISIBLE];
@@ -44,7 +68,8 @@ MainWindow::MainWindow(QWidget *parent)
   ui->treeWidget->setColumnWidth(1, 1);
   //ui->tableWidget->insertRow(currentRowCount, 0, QTableWidgetItem("Some text"));
 
-
+  //TODO: break after this many iterations. just some arbitary number
+  static int i = 0;
   while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, data + offset, length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
   {
     // Print current instruction pointer.
@@ -66,27 +91,21 @@ MainWindow::MainWindow(QWidget *parent)
 
     offset += instruction.length;
     runtime_address += instruction.length;
+
+    i++;
+    if (i == 30)
+      break;
   }
-}
 
-MainWindow::~MainWindow()
-{
-  delete ui;
-}
-
-auto MainWindow::on_actionDebugging_Symbols_triggered() -> void
-{
-  const auto filename = QFileDialog::getOpenFileName(nullptr, tr("Load Debugging Symbols..."), "", tr("Program Database (*.pdb)"));
-
-  if (filename.isEmpty())
-    return;
-
+  // skip this for now
+  /*
   ui->statusbar->showMessage("Loading the debugging symbols. It may take a few minutes."); qApp->processEvents();
 
   dia_data_source.reset(new struct dia_data_source(filename.toStdWString().c_str()));
   dia_data_source->get_source_files();
 
   treeview_init();
+  */
 }
 
 auto MainWindow::on_actionExit_triggered() -> void
