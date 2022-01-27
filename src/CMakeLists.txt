@@ -18,6 +18,7 @@ target_link_libraries(dds
 PRIVATE
     Qt6::Widgets
     diaguids
+    Zydis
 )
 
 set_target_virtual_directories(dds)
