@@ -89,7 +89,7 @@ auto MainWindow::on_pushButton_clicked() -> void
     // Loop over the instructions in our buffer.
     // The runtime-address (instruction pointer) is chosen arbitrary here in order to better
     // visualize relative addressing
-    ZyanU64 runtime_address = 0x007FFFFFFF400000;
+    ZyanU64 runtime_address = symbol_rva(ui->textEdit->toPlainText(), 0) + 0x0400000;
     ZyanUSize offset = 0;
     ZyanU8 *p_data = &primary_symbol[0];
     ZyanU8 *s_data = &secondary_symbol[0];
@@ -127,7 +127,7 @@ auto MainWindow::on_pushButton_clicked() -> void
     }
 
     offset = 0;
-    runtime_address = 0x007FFFFFFF400000;
+    runtime_address = symbol_rva(ui->textEdit->toPlainText(), 1) + 0x0400000;
 
     while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, s_data + offset, s_length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
     {
