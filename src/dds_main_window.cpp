@@ -5,6 +5,7 @@
 #include <QFileDialog>
 #include <QStandardPaths>
 #include <QScrollBar>
+#include <QMessageBox>
 
 #undef DEBUG
 #include <LIEF/LIEF.hpp>
@@ -68,86 +69,92 @@ auto MainWindow::on_pushButton_clicked() -> void
   auto secondary_binary = LIEF::PE::Parser::parse((secondary_file_info.path() + "/" + secondary_file_info.completeBaseName() + ".exe").toStdString());
 
   // TODO: don't throw if F is not found? // R_InitDynamicVertexBufferState
-  auto primary_symbol = primary_binary->get_content_from_virtual_address(symbol_rva(ui->textEdit->toPlainText(), 0), symbol_length(ui->textEdit->toPlainText(), 0), LIEF::Binary::VA_TYPES::RVA);
-  auto secondary_symbol = secondary_binary->get_content_from_virtual_address(symbol_rva(ui->textEdit->toPlainText(), 1), symbol_length(ui->textEdit->toPlainText(), 1), LIEF::Binary::VA_TYPES::RVA);
 
-  // Initialize decoder context
-  ZydisDecoder decoder;
-  ZydisDecoderInit(&decoder, ZYDIS_MACHINE_MODE_LEGACY_32, ZYDIS_STACK_WIDTH_32);
-
-  // Initialize formatter. Only required when you actually plan to do instruction
-  // formatting ("disassembling"), like we do here
-  ZydisFormatter formatter;
-  ZydisFormatterInit(&formatter, ZYDIS_FORMATTER_STYLE_INTEL);
-
-  // Loop over the instructions in our buffer.
-  // The runtime-address (instruction pointer) is chosen arbitrary here in order to better
-  // visualize relative addressing
-  ZyanU64 runtime_address = 0x007FFFFFFF400000;
-  ZyanUSize offset = 0;
-  ZyanU8 *p_data = &primary_symbol[0];
-  ZyanU8 *s_data = &secondary_symbol[0];
-  ZyanUSize p_length = primary_symbol.size();
-  ZyanUSize s_length = secondary_symbol.size();
-  ZydisDecodedInstruction instruction;
-  ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT_VISIBLE];
-
-  ui->treeWidget->setHeaderLabel("");
-  ui->treeWidget->setColumnCount(2);
-  ui->treeWidget->setColumnWidth(1, 1);
-  ui->treeWidget_2->setHeaderLabel("");
-  ui->treeWidget_2->setColumnCount(2);
-  ui->treeWidget_2->setColumnWidth(1, 1);
-
-  ui->treeWidget->clear();
-  ui->treeWidget_2->clear();
-
-  while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, p_data + offset, p_length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
+  try
   {
-    // Format & print the binary instruction structure to human readable format
-    char buffer[256];
-    ZydisFormatterFormatInstruction(&formatter, &instruction, operands, instruction.operand_count_visible, buffer, sizeof(buffer), runtime_address);
-    puts(buffer);
+    //your code here
 
-    QString a = buffer;
+    auto primary_symbol = primary_binary->get_content_from_virtual_address(symbol_rva(ui->textEdit->toPlainText(), 0), symbol_length(ui->textEdit->toPlainText(), 0), LIEF::Binary::VA_TYPES::RVA);
+    auto secondary_symbol = secondary_binary->get_content_from_virtual_address(symbol_rva(ui->textEdit->toPlainText(), 1), symbol_length(ui->textEdit->toPlainText(), 1), LIEF::Binary::VA_TYPES::RVA);
 
-    const auto item = new QTreeWidgetItem();
-    item->setText(0, a.section(' ', 0, 0));
-    ui->treeWidget->addTopLevelItem(item);
+    // Initialize decoder context
+    ZydisDecoder decoder;
+    ZydisDecoderInit(&decoder, ZYDIS_MACHINE_MODE_LEGACY_32, ZYDIS_STACK_WIDTH_32);
 
-    item->setText(1, a.section(' ', 1, 2));
-    ui->treeWidget->addTopLevelItem(item);
+    // Initialize formatter. Only required when you actually plan to do instruction
+    // formatting ("disassembling"), like we do here
+    ZydisFormatter formatter;
+    ZydisFormatterInit(&formatter, ZYDIS_FORMATTER_STYLE_INTEL);
 
-    offset += instruction.length;
-    runtime_address += instruction.length;
+    // Loop over the instructions in our buffer.
+    // The runtime-address (instruction pointer) is chosen arbitrary here in order to better
+    // visualize relative addressing
+    ZyanU64 runtime_address = 0x007FFFFFFF400000;
+    ZyanUSize offset = 0;
+    ZyanU8 *p_data = &primary_symbol[0];
+    ZyanU8 *s_data = &secondary_symbol[0];
+    ZyanUSize p_length = primary_symbol.size();
+    ZyanUSize s_length = secondary_symbol.size();
+    ZydisDecodedInstruction instruction;
+    ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT_VISIBLE];
+
+    ui->treeWidget->setHeaderLabel("");
+    ui->treeWidget->setColumnCount(2);
+    ui->treeWidget->setColumnWidth(1, 1);
+    ui->treeWidget_2->setHeaderLabel("");
+    ui->treeWidget_2->setColumnCount(2);
+    ui->treeWidget_2->setColumnWidth(1, 1);
+
+    ui->treeWidget->clear();
+    ui->treeWidget_2->clear();
+
+    while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, p_data + offset, p_length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
+    {
+      // Format & print the binary instruction structure to human readable format
+      char buffer[256];
+      ZydisFormatterFormatInstruction(&formatter, &instruction, operands, instruction.operand_count_visible, buffer, sizeof(buffer), runtime_address);
+      puts(buffer);
+
+      QString a = buffer;
+
+      const auto item = new QTreeWidgetItem();
+      item->setText(0, a.section(' ', 0, 0));
+      ui->treeWidget->addTopLevelItem(item);
+
+      item->setText(1, a.section(' ', 1, 2));
+      ui->treeWidget->addTopLevelItem(item);
+
+      offset += instruction.length;
+      runtime_address += instruction.length;
+    }
+
+    offset = 0;
+    runtime_address = 0x007FFFFFFF400000;
+
+    while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, s_data + offset, s_length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
+    {
+      // Format & print the binary instruction structure to human readable format
+      char buffer[256];
+      ZydisFormatterFormatInstruction(&formatter, &instruction, operands, instruction.operand_count_visible, buffer, sizeof(buffer), runtime_address);
+      puts(buffer);
+
+      QString a = buffer;
+
+      const auto item = new QTreeWidgetItem();
+      item->setText(0, a.section(' ', 0, 0));
+      ui->treeWidget_2->addTopLevelItem(item);
+
+      item->setText(1, a.section(' ', 1, 2));
+      ui->treeWidget_2->addTopLevelItem(item);
+
+      offset += instruction.length;
+      runtime_address += instruction.length;
+    }
   }
-
-  offset = 0;
-  runtime_address = 0x007FFFFFFF400000;
-
-  while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, s_data + offset, s_length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
+  catch (...)
   {
-    // Format & print the binary instruction structure to human readable format
-    char buffer[256];
-    ZydisFormatterFormatInstruction(&formatter, &instruction, operands, instruction.operand_count_visible, buffer, sizeof(buffer), runtime_address);
-    puts(buffer);
-
-    QString a = buffer;
-
-    const auto item = new QTreeWidgetItem();
-    item->setText(0, a.section(' ', 0, 0));
-    ui->treeWidget_2->addTopLevelItem(item);
-
-    item->setText(1, a.section(' ', 1, 2));
-    ui->treeWidget_2->addTopLevelItem(item);
-
-    offset += instruction.length;
-    runtime_address += instruction.length;
+    QMessageBox::critical(nullptr, "Error", ui->textEdit->toPlainText() + " not found");
   }
-
-
-  //connect(ui->treeWidget_2->horizontalScrollBar(), &QScrollBar::rangeChanged, [=]{ ui->treeWidget_->horizontalScrollBar()->setValue(ui->treeWidget->horizontalScrollBar()->value()); });
-
 }
 
 MainWindow::~MainWindow()
