@@ -7,6 +7,7 @@ add_executable(dds
 target_include_directories(dds
 PRIVATE
     "C:/Program Files/Microsoft Visual Studio/2022/Community/DIA SDK/include"
+    ${LIEF_INCLUDE_DIRS}
 )
 
 target_link_directories(dds
@@ -17,8 +18,10 @@ PRIVATE
 target_link_libraries(dds
 PRIVATE
     Qt6::Widgets
-    diaguids
     Zydis
+    diaguids
+    ${LIEF_LIBRARIES}
 )
 
+set_property(TARGET dds PROPERTY LINK_FLAGS /NODEFAULTLIB:MSVCRT)
 set_target_virtual_directories(dds)
