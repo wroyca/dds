@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>720</width>
+    <width>1050</width>
     <height>600</height>
    </rect>
   </property>
@@ -22,12 +22,28 @@
         <property name="rootIsDecorated">
          <bool>false</bool>
         </property>
+        <property name="columnCount">
+         <number>3</number>
+        </property>
         <attribute name="headerVisible">
-         <bool>false</bool>
+         <bool>true</bool>
+        </attribute>
+        <attribute name="headerDefaultSectionSize">
+         <number>50</number>
         </attribute>
         <column>
          <property name="text">
           <string notr="true">1</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string notr="true">2</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string notr="true">3</string>
          </property>
         </column>
        </widget>
@@ -37,12 +53,31 @@
         <property name="rootIsDecorated">
          <bool>false</bool>
         </property>
+        <property name="columnCount">
+         <number>3</number>
+        </property>
         <attribute name="headerVisible">
-         <bool>false</bool>
+         <bool>true</bool>
+        </attribute>
+        <attribute name="headerDefaultSectionSize">
+         <number>50</number>
+        </attribute>
+        <attribute name="headerStretchLastSection">
+         <bool>true</bool>
         </attribute>
         <column>
          <property name="text">
           <string notr="true">1</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string notr="true">2</string>
+         </property>
+        </column>
+        <column>
+         <property name="text">
+          <string notr="true">3</string>
          </property>
         </column>
        </widget>
@@ -79,7 +114,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>720</width>
+     <width>1050</width>
      <height>22</height>
     </rect>
    </property>

@@ -98,15 +98,10 @@ auto MainWindow::on_pushButton_clicked() -> void
     ZydisDecodedInstruction instruction;
     ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT_VISIBLE];
 
-    ui->treeWidget->setHeaderLabel("");
-    ui->treeWidget->setColumnCount(2);
-    ui->treeWidget->setColumnWidth(1, 1);
-    ui->treeWidget_2->setHeaderLabel("");
-    ui->treeWidget_2->setColumnCount(2);
-    ui->treeWidget_2->setColumnWidth(1, 1);
-
     ui->treeWidget->clear();
     ui->treeWidget_2->clear();
+
+    QVector<QString> primary, secondary;
 
     while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, p_data + offset, p_length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
     {
@@ -115,7 +110,9 @@ auto MainWindow::on_pushButton_clicked() -> void
       ZydisFormatterFormatInstruction(&formatter, &instruction, operands, instruction.operand_count_visible, buffer, sizeof(buffer), runtime_address);
       puts(buffer);
 
-      QString a = buffer;
+      primary.push_back(buffer);
+
+      /*QString a = buffer;
 
       const auto item = new QTreeWidgetItem();
       item->setText(0, a.section(' ', 0, 0));
@@ -123,6 +120,7 @@ auto MainWindow::on_pushButton_clicked() -> void
 
       item->setText(1, a.section(' ', 1, 2));
       ui->treeWidget->addTopLevelItem(item);
+      ui->treeWidget->setAlternatingRowColors(true);*/
 
       offset += instruction.length;
       runtime_address += instruction.length;
@@ -137,18 +135,109 @@ auto MainWindow::on_pushButton_clicked() -> void
       char buffer[256];
       ZydisFormatterFormatInstruction(&formatter, &instruction, operands, instruction.operand_count_visible, buffer, sizeof(buffer), runtime_address);
       puts(buffer);
-
-      QString a = buffer;
-
-      const auto item = new QTreeWidgetItem();
-      item->setText(0, a.section(' ', 0, 0));
-      ui->treeWidget_2->addTopLevelItem(item);
-
-      item->setText(1, a.section(' ', 1, 2));
-      ui->treeWidget_2->addTopLevelItem(item);
-
+      secondary.push_back(buffer);
       offset += instruction.length;
       runtime_address += instruction.length;
+    }
+
+    // TODO: Cleanup
+    for (int i = 0; i < primary.size(); i++)
+    {
+      if(i < secondary.size())
+      {
+        QString b = primary.at(i);
+        QString c = secondary.at(i);
+
+        if (b == c)
+        {
+          QString b = primary.at(i);
+          QString c = secondary.at(i);
+
+          // 1
+          const auto item1 = new QTreeWidgetItem();
+          item1->setText(0, QString::number(i));
+          ui->treeWidget->addTopLevelItem(item1);
+          item1->setText(1, b.section(' ', 0, 0));
+          ui->treeWidget->addTopLevelItem(item1);
+          item1->setText(2, b.section(' ', 1, 1000));
+          ui->treeWidget->addTopLevelItem(item1);
+          ui->treeWidget->setAlternatingRowColors(true);
+
+          // 2
+          const auto item2 = new QTreeWidgetItem();
+          item2->setText(0, QString::number(i));
+          ui->treeWidget_2->addTopLevelItem(item2);
+          item2->setText(1, c.section(' ', 0, 0));
+          ui->treeWidget_2->addTopLevelItem(item2);
+          item2->setText(2, c.section(' ', 1, 1000));
+          ui->treeWidget_2->addTopLevelItem(item2);
+          ui->treeWidget_2->setAlternatingRowColors(true);
+        }
+        else
+        {
+          // 1
+
+          const auto item1 = new QTreeWidgetItem();
+          item1->setText(0, QString::number(i));
+          item1->setForeground(0, Qt::red);
+          ui->treeWidget->addTopLevelItem(item1);
+          item1->setText(1, b.section(' ', 0, 0));
+          item1->setForeground(1, Qt::red);
+          ui->treeWidget->addTopLevelItem(item1);
+          item1->setText(2, b.section(' ', 1));
+          item1->setForeground(2, Qt::red);
+          ui->treeWidget->addTopLevelItem(item1);
+          ui->treeWidget->setAlternatingRowColors(true);
+
+          // 2
+          const auto item2 = new QTreeWidgetItem();
+          item2->setText(0, QString::number(i));
+          item2->setForeground(0, Qt::red);
+          ui->treeWidget_2->addTopLevelItem(item2);
+          item2->setText(1, c.section(' ', 0, 0));
+          item2->setForeground(1, Qt::red);
+          ui->treeWidget_2->addTopLevelItem(item2);
+          item2->setText(2, c.section(' ', 1));
+          item2->setForeground(2, Qt::red);
+          ui->treeWidget_2->addTopLevelItem(item2);
+          ui->treeWidget_2->setAlternatingRowColors(true);
+        }
+
+        // Look like bo-reversed have more than codmpserver, oops? ;)
+        if(i == primary.size() && i < secondary.size())
+        {
+          for(;i < secondary.size(); i++)
+          {
+            const auto item2 = new QTreeWidgetItem();
+            item2->setText(0, QString::number(i));
+            item2->setForeground(0, Qt::red);
+            ui->treeWidget_2->addTopLevelItem(item2);
+            item2->setText(1, c.section(' ', 0, 0));
+            item2->setForeground(1, Qt::red);
+            ui->treeWidget_2->addTopLevelItem(item2);
+            item2->setText(2, c.section(' ', 1));
+            item2->setForeground(2, Qt::red);
+            ui->treeWidget_2->addTopLevelItem(item2);
+            ui->treeWidget_2->setAlternatingRowColors(true);
+          }
+        }
+      }
+      else
+      {
+        // We've reached end of bo-reversed when codmpserver still have more.
+        QString b = primary.at(i);
+        const auto item1 = new QTreeWidgetItem();
+        item1->setText(0, QString::number(i));
+        item1->setForeground(0, Qt::red);
+        ui->treeWidget->addTopLevelItem(item1);
+        item1->setText(1, b.section(' ', 0, 0));
+        item1->setForeground(1, Qt::red);
+        ui->treeWidget->addTopLevelItem(item1);
+        item1->setText(2, b.section(' ', 1));
+        item1->setForeground(2, Qt::red);
+        ui->treeWidget->addTopLevelItem(item1);
+        ui->treeWidget->setAlternatingRowColors(true);
+      }
     }
   }
   catch (...)
