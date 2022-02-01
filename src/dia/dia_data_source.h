@@ -29,7 +29,7 @@ extern Dia dia;
 auto load_debugging_symbols(const std::vector<QString> &files) -> void;
 auto load_source_tree() -> void;
 
-auto symbol_rva(const QString symbol, int id) -> DWORD;
-auto symbol_length(const QString symbol, int id) -> DWORD;
+auto symbol_rva(QString symbol, int id) -> DWORD;
+auto symbol_length(QString symbol, int id) -> DWORD;
 
 #endif // DIA_DATA_SOURCE_H

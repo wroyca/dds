@@ -8,10 +8,10 @@ struct Dia
 {
   // Initiates access to a source of debugging symbols.
   CComPtr<IDiaDataSource> primary_data_source, secondary_data_source;
-  
+
   // Provides a query context for debug symbols.
   CComPtr<IDiaSession> primary_session, secondary_session;
-  
+
   // Describes the properties of a symbol instance.
   CComPtr<IDiaSymbol> primary_symbol, secondary_symbol;
 };

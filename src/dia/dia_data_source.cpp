@@ -16,7 +16,7 @@ auto load_debugging_symbols(const std::vector<QString> &files) -> void
   const auto get_class_object = reinterpret_cast<HRESULT(*)(const IID &, const IID &, LPVOID)>(GetProcAddress(library, "DllGetClassObject")); // NOLINT(clang-diagnostic-cast-function-type)
   assert(get_class_object);
 
-  for (size_t i = 0; i < files.size(); i++) 
+  for (size_t i = 0; i < files.size(); i++)
   {
     CComPtr<IClassFactory> class_factory; // Enables a class of objects to be created.
 
@@ -95,7 +95,7 @@ auto symbol_rva(const QString symbol, int id) -> DWORD
 
     DWORD dwRVA;
 
-    if (pFunction->get_relativeVirtualAddress(&dwRVA) == S_OK) return dwRVA; // OK :) 
+    if (pFunction->get_relativeVirtualAddress(&dwRVA) == S_OK) return dwRVA; // OK :)
 
     pFunction->Release();
   }
@@ -120,7 +120,7 @@ auto symbol_length(const QString symbol, int id) -> DWORD
 
     ULONGLONG ulLength;
 
-    if (pFunction->get_length(&ulLength) == S_OK) return ulLength; // OK :) 
+    if (pFunction->get_length(&ulLength) == S_OK) return ulLength; // OK :)
 
     pFunction->Release();
   }

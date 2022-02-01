@@ -11,13 +11,13 @@
 #include <LIEF/LIEF.hpp>
 #include <Zydis/Zydis.h>
 
+#include "Zycore/Format.h"
+
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow), primary_model(new QFileSystemModel(this)), secondary_model(new QFileSystemModel(this))
 {
   ui->setupUi(this);
   ui->treeWidget->hide();
   ui->treeWidget_2->hide();
-
-  // connect(ui->treeWidget->horizontalScrollBar(), &QScrollBar::rangeChanged, [=]{ ui->treeWidget_2->horizontalScrollBar()->setValue(ui->treeWidget->horizontalScrollBar()->value()); });
 }
 
 auto MainWindow::on_actionDebugging_Symbols_triggered() -> void
@@ -28,27 +28,27 @@ auto MainWindow::on_actionDebugging_Symbols_triggered() -> void
     return;
 
   const auto secondary_file_name = QFileDialog::getOpenFileName(nullptr, "Secondary Program Database.", "", "Program Database (*.pdb)");
-  
+
   if (secondary_file_name.isEmpty())
     return;
 
   load_debugging_symbols({primary_file_name, secondary_file_name});
 
-  // TODO: Compare tree, change treeView item color to red if it can't be found in treeView_2. 
-  // 
+  // TODO: Compare tree, change treeView item color to red if it can't be found in treeView_2.
+  //
   // load_source_tree()
-  // 
+  //
   // primary_model->setFilter(QDir::NoDotAndDotDot | QDir::AllDirs | QDir::Files);
   // primary_model->setRootPath(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/dds/"));
-  // 
+  //
   // secondary_model->setFilter(QDir::NoDotAndDotDot | QDir::AllDirs | QDir::Files);
   // secondary_model->setRootPath(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/dds/"));
-  // 
+  //
   // ui->treeView->setModel(primary_model);
   // ui->treeView->setRootIndex(primary_model->index(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/ddsx/0/C/projects_pc/cod/codsrc")));
   // ui->treeView->header()->setStretchLastSection(true);
   // ui->treeView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
-  // 
+  //
   // ui->treeView_2->setModel(primary_model);
   // ui->treeView_2->setRootIndex(primary_model->index(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/ddsx/1/c/projects_pc/cod/codsrc")));
   // ui->treeView_2->header()->setStretchLastSection(true);
@@ -63,17 +63,154 @@ auto MainWindow::on_actionDebugging_Symbols_triggered() -> void
   secondary_file_info = QFileInfo(secondary_file_name);
 }
 
+ZydisFormatterFunc default_print_address_absolute;
+ZydisFormatterFunc default_print_address_absolute_s;
+
+auto GetTable(IDiaSession *pSession, REFIID iid, void **ppUnk) -> HRESULT
+{
+  IDiaEnumTables *pEnumTables;
+
+  if (FAILED(pSession->getEnumTables(&pEnumTables))) {
+    wprintf(L"ERROR - GetTable() getEnumTables\n");
+
+    return E_FAIL;
+  }
+
+  IDiaTable *pTable;
+  ULONG celt = 0;
+
+  while (SUCCEEDED(pEnumTables->Next(1, &pTable, &celt)) && (celt == 1)) {
+    // There's only one table that matches the given IID
+
+    if (SUCCEEDED(pTable->QueryInterface(iid, (void **) ppUnk))) {
+      pTable->Release();
+      pEnumTables->Release();
+
+      return S_OK;
+    }
+
+    pTable->Release();
+  }
+
+  pEnumTables->Release();
+
+  return E_FAIL;
+}
+
+static auto ZydisFormatterPrintAddressAbsolute_p(const ZydisFormatter *formatter, ZydisFormatterBuffer *buffer, ZydisFormatterContext *context) -> ZyanStatus
+{
+  ZyanU64 address;
+  ZYAN_CHECK(ZydisCalcAbsoluteAddress(context->instruction, context->operand, context->runtime_address, &address));
+
+  IDiaSymbol *pSymbol;
+  LONG lDisplacement;
+
+  // BUG: findSymbolByRVA consider nullptr a success,
+  if (SUCCEEDED(dia.session[0]->findSymbolByRVA(static_cast<DWORD>(address - 0x0400000), SymTagFunction, &pSymbol)) && pSymbol != nullptr)
+  {
+    BSTR name;
+    pSymbol->get_name(&name);
+    const auto losing_my_sanity = QString(reinterpret_cast<QChar*>(name));
+
+    ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL));
+    ZyanString *string;
+    ZYAN_CHECK(ZydisFormatterBufferGetString(buffer, &string));
+
+    pSymbol->Release();
+    SysFreeString(name);
+
+    return ZyanStringAppendFormat(string, "<%s>", losing_my_sanity.toStdString().c_str());
+  }
+
+  //
+  // TODO: Currently only work with global type, need to figure out how to handle local types as well.
+  //
+
+  if (SUCCEEDED(dia.session[0]->findSymbolByRVA(static_cast<DWORD>(address - 0x0400000), SymTagData, &pSymbol)) && pSymbol != nullptr)
+  {
+    DWORD dwDataKind;
+
+    if (pSymbol->get_dataKind(&dwDataKind) != S_OK)
+      return default_print_address_absolute(formatter, buffer, context);
+
+    BSTR name;
+    pSymbol->get_name(&name);
+    const auto losing_my_sanity = QString(reinterpret_cast<QChar*>(name));
+
+    ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_USER));
+    ZyanString *string;
+    ZYAN_CHECK(ZydisFormatterBufferGetString(buffer, &string));
+
+    pSymbol->Release();
+    SysFreeString(name);
+
+    return ZyanStringAppendFormat(string, "<%s>", losing_my_sanity.toStdString().c_str());
+  }
+
+  return default_print_address_absolute(formatter, buffer, context);
+}
+
+static auto ZydisFormatterPrintAddressAbsolute_s(const ZydisFormatter *formatter, ZydisFormatterBuffer *buffer, ZydisFormatterContext *context) -> ZyanStatus
+{
+  ZyanU64 address;
+  ZYAN_CHECK(ZydisCalcAbsoluteAddress(context->instruction, context->operand, context->runtime_address, &address));
+
+  IDiaSymbol *pSymbol;
+  LONG lDisplacement;
+
+  // BUG: findSymbolByRVA consider nullptr a success,
+  if (SUCCEEDED(dia.session[1]->findSymbolByRVA(static_cast<DWORD>(address - 0x0400000), SymTagFunction, &pSymbol)) && pSymbol != nullptr)
+  {
+    BSTR name;
+    pSymbol->get_name(&name);
+    const auto losing_my_sanity = QString(reinterpret_cast<QChar*>(name));
+
+    ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL));
+    ZyanString *string;
+    ZYAN_CHECK(ZydisFormatterBufferGetString(buffer, &string));
+
+    pSymbol->Release();
+    SysFreeString(name);
+
+    return ZyanStringAppendFormat(string, "<%s>", losing_my_sanity.toStdString().c_str());
+  }
+
+  //
+  // TODO: Currently only work with global type, need to figure out how to handle local types as well.
+  //
+
+  if (SUCCEEDED(dia.session[1]->findSymbolByRVA(static_cast<DWORD>(address - 0x0400000), SymTagData, &pSymbol)) && pSymbol != nullptr)
+  {
+    DWORD dwDataKind;
+
+    if (pSymbol->get_dataKind(&dwDataKind) != S_OK)
+      return default_print_address_absolute(formatter, buffer, context);
+
+    BSTR name;
+    pSymbol->get_name(&name);
+    const auto losing_my_sanity = QString(reinterpret_cast<QChar*>(name));
+
+    ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_USER));
+    ZyanString *string;
+    ZYAN_CHECK(ZydisFormatterBufferGetString(buffer, &string));
+
+    pSymbol->Release();
+    SysFreeString(name);
+
+    return ZyanStringAppendFormat(string, "<%s>", losing_my_sanity.toStdString().c_str());
+  }
+
+  return default_print_address_absolute_s(formatter, buffer, context);
+}
+
+
 auto MainWindow::on_pushButton_clicked() -> void
 {
   auto primary_binary = LIEF::PE::Parser::parse((primary_file_info.path() + "/" + primary_file_info.completeBaseName() + ".exe").toStdString());
   auto secondary_binary = LIEF::PE::Parser::parse((secondary_file_info.path() + "/" + secondary_file_info.completeBaseName() + ".exe").toStdString());
 
-  // TODO: don't throw if F is not found? // R_InitDynamicVertexBufferState
-
   try
   {
-    //your code here
-
     auto primary_symbol = primary_binary->get_content_from_virtual_address(symbol_rva(ui->textEdit->toPlainText(), 0), symbol_length(ui->textEdit->toPlainText(), 0), LIEF::Binary::VA_TYPES::RVA);
     auto secondary_symbol = secondary_binary->get_content_from_virtual_address(symbol_rva(ui->textEdit->toPlainText(), 1), symbol_length(ui->textEdit->toPlainText(), 1), LIEF::Binary::VA_TYPES::RVA);
 
@@ -103,41 +240,51 @@ auto MainWindow::on_pushButton_clicked() -> void
 
     QVector<QString> primary, secondary;
 
+    default_print_address_absolute = (ZydisFormatterFunc)&ZydisFormatterPrintAddressAbsolute_p;
+    ZydisFormatterSetHook(&formatter, ZYDIS_FORMATTER_FUNC_PRINT_ADDRESS_ABS,
+        (const void**)&default_print_address_absolute);
+
     while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, p_data + offset, p_length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
     {
-      // Format & print the binary instruction structure to human readable format
       char buffer[256];
       ZydisFormatterFormatInstruction(&formatter, &instruction, operands, instruction.operand_count_visible, buffer, sizeof(buffer), runtime_address);
-      puts(buffer);
-
       primary.push_back(buffer);
-
-      /*QString a = buffer;
-
-      const auto item = new QTreeWidgetItem();
-      item->setText(0, a.section(' ', 0, 0));
-      ui->treeWidget->addTopLevelItem(item);
-
-      item->setText(1, a.section(' ', 1, 2));
-      ui->treeWidget->addTopLevelItem(item);
-      ui->treeWidget->setAlternatingRowColors(true);*/
-
       offset += instruction.length;
       runtime_address += instruction.length;
     }
 
-    offset = 0;
-    runtime_address = symbol_rva(ui->textEdit->toPlainText(), 1) + 0x0400000;
+    //
+    // BUG: We recreate everything because the hook conflict otherwise.
+    //
 
-    while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder, s_data + offset, s_length - offset, &instruction, operands, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
+    // Initialize decoder context
+    ZydisDecoder decoder_s;
+    ZydisDecoderInit(&decoder_s, ZYDIS_MACHINE_MODE_LEGACY_32, ZYDIS_STACK_WIDTH_32);
+
+    // Initialize formatter. Only required when you actually plan to do instruction
+    // formatting ("disassembling"), like we do here
+    ZydisFormatter formatter_s;
+    ZydisFormatterInit(&formatter_s, ZYDIS_FORMATTER_STYLE_INTEL);
+
+    // Loop over the instructions in our buffer.
+    // The runtime-address (instruction pointer) is chosen arbitrary here in order to better
+    // visualize relative addressing
+    ZyanU64 runtime_address_s = symbol_rva(ui->textEdit->toPlainText(), 1) + 0x0400000;
+    ZyanUSize offset_s = 0;
+    ZydisDecodedInstruction instruction_s;
+    ZydisDecodedOperand operands_s[ZYDIS_MAX_OPERAND_COUNT_VISIBLE];
+
+    default_print_address_absolute_s = (ZydisFormatterFunc)&ZydisFormatterPrintAddressAbsolute_s;
+    ZydisFormatterSetHook(&formatter_s, ZYDIS_FORMATTER_FUNC_PRINT_ADDRESS_ABS,
+        (const void**)&default_print_address_absolute_s);
+
+    while (ZYAN_SUCCESS(ZydisDecoderDecodeFull(&decoder_s, s_data + offset_s, s_length - offset_s, &instruction_s, operands_s, ZYDIS_MAX_OPERAND_COUNT_VISIBLE, ZYDIS_DFLAG_VISIBLE_OPERANDS_ONLY)))
     {
-      // Format & print the binary instruction structure to human readable format
       char buffer[256];
-      ZydisFormatterFormatInstruction(&formatter, &instruction, operands, instruction.operand_count_visible, buffer, sizeof(buffer), runtime_address);
-      puts(buffer);
+      ZydisFormatterFormatInstruction(&formatter_s, &instruction_s, operands_s, instruction_s.operand_count_visible, buffer, sizeof(buffer), runtime_address_s);
       secondary.push_back(buffer);
-      offset += instruction.length;
-      runtime_address += instruction.length;
+      offset_s += instruction_s.length;
+      runtime_address_s += instruction_s.length;
     }
 
     // TODO: Cleanup
