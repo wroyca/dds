@@ -16,8 +16,8 @@
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), ui(new Ui::MainWindow), primary_model(new QFileSystemModel(this)), secondary_model(new QFileSystemModel(this))
 {
   ui->setupUi(this);
-  ui->treeWidget->hide();
-  ui->treeWidget_2->hide();
+  ui->treeWidgetPrimary->hide();
+  ui->treeWidgetSecondary->hide();
 }
 
 auto MainWindow::on_actionDebugging_Symbols_triggered() -> void
@@ -34,7 +34,7 @@ auto MainWindow::on_actionDebugging_Symbols_triggered() -> void
 
   load_debugging_symbols({primary_file_name, secondary_file_name});
 
-  // TODO: Compare tree, change treeView item color to red if it can't be found in treeView_2.
+  // TODO: Compare tree, change treeViewPrimary item color to red if it can't be found in treeViewSecondary.
   //
   // load_source_tree()
   //
@@ -44,23 +44,27 @@ auto MainWindow::on_actionDebugging_Symbols_triggered() -> void
   // secondary_model->setFilter(QDir::NoDotAndDotDot | QDir::AllDirs | QDir::Files);
   // secondary_model->setRootPath(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/dds/"));
   //
-  // ui->treeView->setModel(primary_model);
-  // ui->treeView->setRootIndex(primary_model->index(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/ddsx/0/C/projects_pc/cod/codsrc")));
-  // ui->treeView->header()->setStretchLastSection(true);
-  // ui->treeView->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  // ui->treeViewPrimary->setModel(primary_model);
+  // ui->treeViewPrimary->setRootIndex(primary_model->index(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/ddsx/0/C/projects_pc/cod/codsrc")));
+  // ui->treeViewPrimary->header()->setStretchLastSection(true);
+  // ui->treeViewPrimary->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
   //
-  // ui->treeView_2->setModel(primary_model);
-  // ui->treeView_2->setRootIndex(primary_model->index(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/ddsx/1/c/projects_pc/cod/codsrc")));
-  // ui->treeView_2->header()->setStretchLastSection(true);
-  // ui->treeView_2->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+  // ui->treeViewSecondary->setModel(primary_model);
+  // ui->treeViewSecondary->setRootIndex(primary_model->index(QStandardPaths::writableLocation(QStandardPaths::DesktopLocation).append("/ddsx/1/c/projects_pc/cod/codsrc")));
+  // ui->treeViewSecondary->header()->setStretchLastSection(true);
+  // ui->treeViewSecondary->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
 
-  ui->treeView->hide();
-  ui->treeView_2->hide();
-  ui->treeWidget->show();
-  ui->treeWidget_2->show();
+  ui->treeViewPrimary->hide();
+  ui->treeViewSecondary->hide();
+  ui->treeWidgetPrimary->show();
+  ui->treeWidgetSecondary->show();
 
   primary_file_info = QFileInfo(primary_file_name);
   secondary_file_info = QFileInfo(secondary_file_name);
+
+  // load executables
+  primary_binary = LIEF::PE::Parser::parse((primary_file_info.path() + "/" + primary_file_info.completeBaseName() + ".exe").toStdString());
+  secondary_binary = LIEF::PE::Parser::parse((secondary_file_info.path() + "/" + secondary_file_info.completeBaseName() + ".exe").toStdString());
 }
 
 ZydisFormatterFunc default_print_address_absolute;
@@ -110,7 +114,7 @@ static auto ZydisFormatterPrintAddressAbsolute_p(const ZydisFormatter *formatter
   {
     BSTR name;
     pSymbol->get_name(&name);
-    const auto losing_my_sanity = QString(reinterpret_cast<QChar*>(name));
+    const auto sym_name = QString(reinterpret_cast<QChar*>(name));
 
     ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL));
     ZyanString *string;
@@ -119,7 +123,7 @@ static auto ZydisFormatterPrintAddressAbsolute_p(const ZydisFormatter *formatter
     pSymbol->Release();
     SysFreeString(name);
 
-    return ZyanStringAppendFormat(string, "<%s>", losing_my_sanity.toStdString().c_str());
+    return ZyanStringAppendFormat(string, "<%s>", sym_name.toStdString().c_str());
   }
 
   //
@@ -135,7 +139,7 @@ static auto ZydisFormatterPrintAddressAbsolute_p(const ZydisFormatter *formatter
 
     BSTR name;
     pSymbol->get_name(&name);
-    const auto losing_my_sanity = QString(reinterpret_cast<QChar*>(name));
+    const auto sym_name = QString(reinterpret_cast<QChar*>(name));
 
     ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_USER));
     ZyanString *string;
@@ -144,7 +148,7 @@ static auto ZydisFormatterPrintAddressAbsolute_p(const ZydisFormatter *formatter
     pSymbol->Release();
     SysFreeString(name);
 
-    return ZyanStringAppendFormat(string, "<%s>", losing_my_sanity.toStdString().c_str());
+    return ZyanStringAppendFormat(string, "<%s>", sym_name.toStdString().c_str());
   }
 
   return default_print_address_absolute(formatter, buffer, context);
@@ -163,7 +167,7 @@ static auto ZydisFormatterPrintAddressAbsolute_s(const ZydisFormatter *formatter
   {
     BSTR name;
     pSymbol->get_name(&name);
-    const auto losing_my_sanity = QString(reinterpret_cast<QChar*>(name));
+    const auto sym_name = QString(reinterpret_cast<QChar*>(name));
 
     ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_SYMBOL));
     ZyanString *string;
@@ -172,7 +176,7 @@ static auto ZydisFormatterPrintAddressAbsolute_s(const ZydisFormatter *formatter
     pSymbol->Release();
     SysFreeString(name);
 
-    return ZyanStringAppendFormat(string, "<%s>", losing_my_sanity.toStdString().c_str());
+    return ZyanStringAppendFormat(string, "<%s>", sym_name.toStdString().c_str());
   }
 
   //
@@ -188,7 +192,7 @@ static auto ZydisFormatterPrintAddressAbsolute_s(const ZydisFormatter *formatter
 
     BSTR name;
     pSymbol->get_name(&name);
-    const auto losing_my_sanity = QString(reinterpret_cast<QChar*>(name));
+    const auto sym_name = QString(reinterpret_cast<QChar*>(name));
 
     ZYAN_CHECK(ZydisFormatterBufferAppend(buffer, ZYDIS_TOKEN_USER));
     ZyanString *string;
@@ -197,7 +201,7 @@ static auto ZydisFormatterPrintAddressAbsolute_s(const ZydisFormatter *formatter
     pSymbol->Release();
     SysFreeString(name);
 
-    return ZyanStringAppendFormat(string, "<%s>", losing_my_sanity.toStdString().c_str());
+    return ZyanStringAppendFormat(string, "<%s>", sym_name.toStdString().c_str());
   }
 
   return default_print_address_absolute_s(formatter, buffer, context);
@@ -206,13 +210,15 @@ static auto ZydisFormatterPrintAddressAbsolute_s(const ZydisFormatter *formatter
 
 auto MainWindow::on_pushButton_clicked() -> void
 {
-  auto primary_binary = LIEF::PE::Parser::parse((primary_file_info.path() + "/" + primary_file_info.completeBaseName() + ".exe").toStdString());
-  auto secondary_binary = LIEF::PE::Parser::parse((secondary_file_info.path() + "/" + secondary_file_info.completeBaseName() + ".exe").toStdString());
+  const auto func_name = ui->textEdit->toPlainText();
 
   try
   {
-    auto primary_symbol = primary_binary->get_content_from_virtual_address(symbol_rva(ui->textEdit->toPlainText(), 0), symbol_length(ui->textEdit->toPlainText(), 0), LIEF::Binary::VA_TYPES::RVA);
-    auto secondary_symbol = secondary_binary->get_content_from_virtual_address(symbol_rva(ui->textEdit->toPlainText(), 1), symbol_length(ui->textEdit->toPlainText(), 1), LIEF::Binary::VA_TYPES::RVA);
+    auto primary_sym_rva = symbol_rva(func_name, 0);
+    auto secondary_sym_rva = symbol_rva(func_name, 1);
+
+    auto primary_symbol = primary_binary->get_content_from_virtual_address(primary_sym_rva, symbol_length(func_name, 0), LIEF::Binary::VA_TYPES::RVA);
+    auto secondary_symbol = secondary_binary->get_content_from_virtual_address(secondary_sym_rva, symbol_length(func_name, 1), LIEF::Binary::VA_TYPES::RVA);
 
     // Initialize decoder context
     ZydisDecoder decoder;
@@ -224,9 +230,7 @@ auto MainWindow::on_pushButton_clicked() -> void
     ZydisFormatterInit(&formatter, ZYDIS_FORMATTER_STYLE_INTEL);
 
     // Loop over the instructions in our buffer.
-    // The runtime-address (instruction pointer) is chosen arbitrary here in order to better
-    // visualize relative addressing
-    ZyanU64 runtime_address = symbol_rva(ui->textEdit->toPlainText(), 0) + 0x0400000;
+    ZyanU64 runtime_address = primary_sym_rva + 0x0400000;
     ZyanUSize offset = 0;
     ZyanU8 *p_data = &primary_symbol[0];
     ZyanU8 *s_data = &secondary_symbol[0];
@@ -235,8 +239,8 @@ auto MainWindow::on_pushButton_clicked() -> void
     ZydisDecodedInstruction instruction;
     ZydisDecodedOperand operands[ZYDIS_MAX_OPERAND_COUNT_VISIBLE];
 
-    ui->treeWidget->clear();
-    ui->treeWidget_2->clear();
+    ui->treeWidgetPrimary->clear();
+    ui->treeWidgetSecondary->clear();
 
     QVector<QString> primary, secondary;
 
@@ -267,9 +271,7 @@ auto MainWindow::on_pushButton_clicked() -> void
     ZydisFormatterInit(&formatter_s, ZYDIS_FORMATTER_STYLE_INTEL);
 
     // Loop over the instructions in our buffer.
-    // The runtime-address (instruction pointer) is chosen arbitrary here in order to better
-    // visualize relative addressing
-    ZyanU64 runtime_address_s = symbol_rva(ui->textEdit->toPlainText(), 1) + 0x0400000;
+    ZyanU64 runtime_address_s = secondary_sym_rva + 0x0400000;
     ZyanUSize offset_s = 0;
     ZydisDecodedInstruction instruction_s;
     ZydisDecodedOperand operands_s[ZYDIS_MAX_OPERAND_COUNT_VISIBLE];
@@ -303,22 +305,22 @@ auto MainWindow::on_pushButton_clicked() -> void
           // 1
           const auto item1 = new QTreeWidgetItem();
           item1->setText(0, QString::number(i));
-          ui->treeWidget->addTopLevelItem(item1);
+          ui->treeWidgetPrimary->addTopLevelItem(item1);
           item1->setText(1, b.section(' ', 0, 0));
-          ui->treeWidget->addTopLevelItem(item1);
+          ui->treeWidgetPrimary->addTopLevelItem(item1);
           item1->setText(2, b.section(' ', 1, 1000));
-          ui->treeWidget->addTopLevelItem(item1);
-          ui->treeWidget->setAlternatingRowColors(true);
+          ui->treeWidgetPrimary->addTopLevelItem(item1);
+          ui->treeWidgetPrimary->setAlternatingRowColors(true);
 
           // 2
           const auto item2 = new QTreeWidgetItem();
           item2->setText(0, QString::number(i));
-          ui->treeWidget_2->addTopLevelItem(item2);
+          ui->treeWidgetSecondary->addTopLevelItem(item2);
           item2->setText(1, c.section(' ', 0, 0));
-          ui->treeWidget_2->addTopLevelItem(item2);
+          ui->treeWidgetSecondary->addTopLevelItem(item2);
           item2->setText(2, c.section(' ', 1, 1000));
-          ui->treeWidget_2->addTopLevelItem(item2);
-          ui->treeWidget_2->setAlternatingRowColors(true);
+          ui->treeWidgetSecondary->addTopLevelItem(item2);
+          ui->treeWidgetSecondary->setAlternatingRowColors(true);
         }
         else
         {
@@ -327,27 +329,27 @@ auto MainWindow::on_pushButton_clicked() -> void
           const auto item1 = new QTreeWidgetItem();
           item1->setText(0, QString::number(i));
           item1->setForeground(0, Qt::red);
-          ui->treeWidget->addTopLevelItem(item1);
+          ui->treeWidgetPrimary->addTopLevelItem(item1);
           item1->setText(1, b.section(' ', 0, 0));
           item1->setForeground(1, Qt::red);
-          ui->treeWidget->addTopLevelItem(item1);
+          ui->treeWidgetPrimary->addTopLevelItem(item1);
           item1->setText(2, b.section(' ', 1));
           item1->setForeground(2, Qt::red);
-          ui->treeWidget->addTopLevelItem(item1);
-          ui->treeWidget->setAlternatingRowColors(true);
+          ui->treeWidgetPrimary->addTopLevelItem(item1);
+          ui->treeWidgetPrimary->setAlternatingRowColors(true);
 
           // 2
           const auto item2 = new QTreeWidgetItem();
           item2->setText(0, QString::number(i));
           item2->setForeground(0, Qt::red);
-          ui->treeWidget_2->addTopLevelItem(item2);
+          ui->treeWidgetSecondary->addTopLevelItem(item2);
           item2->setText(1, c.section(' ', 0, 0));
           item2->setForeground(1, Qt::red);
-          ui->treeWidget_2->addTopLevelItem(item2);
+          ui->treeWidgetSecondary->addTopLevelItem(item2);
           item2->setText(2, c.section(' ', 1));
           item2->setForeground(2, Qt::red);
-          ui->treeWidget_2->addTopLevelItem(item2);
-          ui->treeWidget_2->setAlternatingRowColors(true);
+          ui->treeWidgetSecondary->addTopLevelItem(item2);
+          ui->treeWidgetSecondary->setAlternatingRowColors(true);
         }
 
         // Look like bo-reversed have more than codmpserver, oops? ;)
@@ -358,14 +360,14 @@ auto MainWindow::on_pushButton_clicked() -> void
             const auto item2 = new QTreeWidgetItem();
             item2->setText(0, QString::number(i));
             item2->setForeground(0, Qt::red);
-            ui->treeWidget_2->addTopLevelItem(item2);
+            ui->treeWidgetSecondary->addTopLevelItem(item2);
             item2->setText(1, c.section(' ', 0, 0));
             item2->setForeground(1, Qt::red);
-            ui->treeWidget_2->addTopLevelItem(item2);
+            ui->treeWidgetSecondary->addTopLevelItem(item2);
             item2->setText(2, c.section(' ', 1));
             item2->setForeground(2, Qt::red);
-            ui->treeWidget_2->addTopLevelItem(item2);
-            ui->treeWidget_2->setAlternatingRowColors(true);
+            ui->treeWidgetSecondary->addTopLevelItem(item2);
+            ui->treeWidgetSecondary->setAlternatingRowColors(true);
           }
         }
       }
@@ -376,20 +378,20 @@ auto MainWindow::on_pushButton_clicked() -> void
         const auto item1 = new QTreeWidgetItem();
         item1->setText(0, QString::number(i));
         item1->setForeground(0, Qt::red);
-        ui->treeWidget->addTopLevelItem(item1);
+        ui->treeWidgetPrimary->addTopLevelItem(item1);
         item1->setText(1, b.section(' ', 0, 0));
         item1->setForeground(1, Qt::red);
-        ui->treeWidget->addTopLevelItem(item1);
+        ui->treeWidgetPrimary->addTopLevelItem(item1);
         item1->setText(2, b.section(' ', 1));
         item1->setForeground(2, Qt::red);
-        ui->treeWidget->addTopLevelItem(item1);
-        ui->treeWidget->setAlternatingRowColors(true);
+        ui->treeWidgetPrimary->addTopLevelItem(item1);
+        ui->treeWidgetPrimary->setAlternatingRowColors(true);
       }
     }
   }
   catch (...)
   {
-    QMessageBox::critical(nullptr, "Error", ui->textEdit->toPlainText() + " not found");
+    QMessageBox::critical(nullptr, "Error", func_name + " not found");
   }
 }
 

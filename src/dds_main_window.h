@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QFileSystemModel>
 
-
+namespace LIEF { namespace PE { class Binary; } }
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -27,6 +27,7 @@ private:
   Ui::MainWindow *ui;
   QFileSystemModel *primary_model, *secondary_model;
   QFileInfo primary_file_info, secondary_file_info;
+  std::unique_ptr<LIEF::PE::Binary> primary_binary, secondary_binary;
 };
 
 #endif // DDS_MAINWINDOW_H
