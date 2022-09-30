@@ -1,3 +1,5 @@
+// WARN: This is a prototype not mean to be high quality code.
+
 #include "dds_main_window.h"
 #include "ui_dds_main_window.h"
 #include "dia/dia_data_source.h"
@@ -352,7 +354,7 @@ auto MainWindow::on_pushButton_clicked() -> void
           ui->treeWidgetSecondary->setAlternatingRowColors(true);
         }
 
-        // Look like bo-reversed have more than codmpserver, oops? ;)
+        // Look like A have more than B, oops? ;)
         if(i == primary.size() && i < secondary.size())
         {
           for(;i < secondary.size(); i++)
@@ -373,7 +375,7 @@ auto MainWindow::on_pushButton_clicked() -> void
       }
       else
       {
-        // We've reached end of bo-reversed when codmpserver still have more.
+        // We've reached the end of A when B still have more.
         QString b = primary.at(i);
         const auto item1 = new QTreeWidgetItem();
         item1->setText(0, QString::number(i));
